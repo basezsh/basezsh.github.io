@@ -1,0 +1,5 @@
+<svg width="110" height="110" xmlns="http://www.w3.org/2000/svg">
+  <rect width="110" height="110" fill="#e0f7fa" />
+  <text x="55" y="60" font-size="14" font-family="sans-serif" fill="#00796b" text-anchor="middle">Trusted</text>
+  <text x="55" y="80" font-size="14" font-family="sans-serif" fill="#004d40" text-anchor="middle">Bugs</text>
+</svg>

@@ -1,0 +1,13 @@
+title: "Trusted Bugs Researcher"
+description: "Ethical vulnerability logs, templates, and responsible disclosure."
+baseurl: ""
+url: "https://yourusername.github.io"
+theme: minima
+markdown: kramdown
+plugins:
+  - jekyll-seo-tag
+  - jekyll-feed
+collections:
+  posts:
+    output: true
+    permalink: /blog/:title
