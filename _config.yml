@@ -1,0 +1,15 @@
+title: "Trusted Bugs Researcher"
+description: "Ethical vulnerability logs, templates, and responsible disclosure."
+baseurl: ""
+url: "https://basezsh.github.io"
+theme: minima
+markdown: kramdown
+plugins:
+  - jekyll-seo-tag
+  - jekyll-feed
+include:
+  - _includes/head-custom.html
+collections:
+  posts:
+    output: true
+    permalink: /blog/:title

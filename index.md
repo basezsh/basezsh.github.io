@@ -1,0 +1,27 @@
+---
+layout: default
+title: Home
+---
+
+<div class="entry">
+  <h1>Welcome to My Bug Report Vault</h1>
+  <p>This platform contains educational vulnerability assessments, ethical disclosures, and secure patching logs.</p>
+  <ul>
+    <li>No blackhat tools or illegal methods — strictly research & education.</li>
+    <li>Admins are always contacted prior to public disclosure.</li>
+    <li>Templates follow standardized CVE-style format for clarity.</li>
+  </ul>
+</div>
+
+<div class="entry">
+  <h2>Bug Template: CVE-Format</h2>
+  <p><strong>ID:</strong> CVE-YYYY-NNNNN</p>
+  <p><strong>Affected System:</strong> [Target App/Version]</p>
+  <p><strong>Summary:</strong> Brief explanation of the bug.</p>
+  <p><strong>PoC:</strong> Redacted proof of concept for security awareness.</p>
+  <p><strong>Disclosure Status:</strong> Reported to vendor on [Date]</p>
+</div>
+
+<footer style="font-size: 0.85rem; color: gray; margin-top: 2rem;">
+  This site is AI-assisted and reviewed for accuracy. Always verify critical information.
+</footer>
