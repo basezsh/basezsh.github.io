@@ -1,4 +1,4 @@
-name: Berkah Perdana ERP
+name: Berkah Perdana ERP (Fixed)
 
 on:
   push:
@@ -21,8 +21,9 @@ jobs:
       uses: android-actions/setup-android@v4
       with:
         packages: "platform-tools platforms;android-34 build-tools;34.0.0"
-    - name: Build Android WebView APK
+    - name: Build Android WebView APK with stacktrace
       run: |
+        set -e
         APP_URL="https://server-enterprise.pages.dev"
         PACKAGE_NAME="com.berkah.erp"
         APP_NAME="Berkah Perdana ERP"
@@ -30,13 +31,15 @@ jobs:
         VERSION_NAME="1.0"
 
         mkdir -p app/src/main/java/$(echo $PACKAGE_NAME | tr '.' '/')
-        mkdir -p app/src/main/res/{layout,drawable,values,menu,mipmap-anydpi-v26}
+        mkdir -p app/src/main/res/{layout,drawable,values,mipmap-anydpi-v26}
 
+        # settings.gradle
         cat > settings.gradle <<EOF
         rootProject.name = '$APP_NAME'
         include ':app'
         EOF
 
+        # build.gradle (project)
         cat > build.gradle <<EOF
         buildscript {
             repositories { google(); mavenCentral() }
@@ -45,8 +48,11 @@ jobs:
         allprojects { repositories { google(); mavenCentral() } }
         EOF
 
+        # app/build.gradle (gunakan versi stable)
         cat > app/build.gradle <<GRADLE
-        plugins { id 'com.android.application' }
+        plugins {
+            id 'com.android.application'
+        }
         android {
             namespace '$PACKAGE_NAME'
             compileSdk 34
@@ -57,19 +63,25 @@ jobs:
                 versionCode $VERSION_CODE
                 versionName '$VERSION_NAME'
             }
-            buildTypes { release { minifyEnabled false } }
+            buildTypes {
+                release {
+                    minifyEnabled false
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                }
+            }
             compileOptions {
                 sourceCompatibility JavaVersion.VERSION_17
                 targetCompatibility JavaVersion.VERSION_17
             }
         }
         dependencies {
-            implementation 'androidx.appcompat:appcompat:1.7.0'
-            implementation 'androidx.webkit:webkit:1.13.0'
-            implementation 'com.google.android.material:material:1.12.0'
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'androidx.webkit:webkit:1.10.0'
+            implementation 'com.google.android.material:material:1.11.0'
         }
         GRADLE
 
+        # AndroidManifest.xml (tanpa splash theme dulu untuk mengurangi error)
         cat > app/src/main/AndroidManifest.xml <<MANIFEST
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET"/>
@@ -80,11 +92,10 @@ jobs:
                 android:usesCleartextTraffic="true"
                 android:icon="@drawable/ic_launcher"
                 android:roundIcon="@drawable/ic_launcher"
-                android:theme="@style/Theme.Splash">
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                 <activity
                     android:name=".MainActivity"
-                    android:exported="true"
-                    android:theme="@style/Theme.Splash">
+                    android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN"/>
                         <category android:name="android.intent.category.LAUNCHER"/>
@@ -94,27 +105,14 @@ jobs:
         </manifest>
         MANIFEST
 
+        # themes.xml minimal
         cat > app/src/main/res/values/themes.xml <<XML
         <resources>
-            <style name="Theme.Splash" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-                <item name="android:windowBackground">@drawable/splash_background</item>
-                <item name="android:windowFullscreen">true</item>
-                <item name="colorPrimary">#2196F3</item>
-            </style>
+            <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar"/>
         </resources>
         XML
 
-        mkdir -p app/src/main/res/drawable
-        cat > app/src/main/res/drawable/splash_background.xml <<XML
-        <?xml version="1.0" encoding="utf-8"?>
-        <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-            <item android:drawable="@color/blue"/>
-            <item>
-                <bitmap android:src="@drawable/ic_launcher" android:gravity="center"/>
-            </item>
-        </layer-list>
-        XML
-
+        # colors.xml
         cat > app/src/main/res/values/colors.xml <<XML
         <?xml version="1.0"?>
         <resources>
@@ -122,6 +120,7 @@ jobs:
         </resources>
         XML
 
+        # icon vector (server)
         cat > app/src/main/res/drawable/ic_launcher.xml <<VECTOR
         <vector xmlns:android="http://schemas.android.com/apk/res/android"
             android:width="108dp"
@@ -148,6 +147,7 @@ jobs:
         </vector>
         VECTOR
 
+        # layout (WebView fullscreen)
         cat > app/src/main/res/layout/activity_main.xml <<XML
         <?xml version="1.0" encoding="utf-8"?>
         <WebView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -156,6 +156,7 @@ jobs:
             android:layout_height="match_parent"/>
         XML
 
+        # MainActivity.java (WebView + DownloadManager)
         cat > app/src/main/java/${PACKAGE_NAME//.//}/MainActivity.java <<JAVA
         package $PACKAGE_NAME;
         import android.app.DownloadManager;
@@ -206,12 +207,16 @@ jobs:
         }
         JAVA
 
+        # Buat proguard-rules.pro kosong
+        touch app/proguard-rules.pro
+
+        # Generate gradle wrapper
         gradle wrapper --gradle-version 8.7
         chmod +x gradlew
         echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-    - name: Build APK
-      run: ./gradlew assembleRelease
+    - name: Build APK with stacktrace
+      run: ./gradlew assembleRelease --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
