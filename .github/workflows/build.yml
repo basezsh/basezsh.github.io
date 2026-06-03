@@ -1,0 +1,102 @@
+name: Build WebView APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        packages: "platform-tools platforms;android-34 build-tools;34.0.0"
+    - name: Generate APK
+      run: |
+        mkdir -p app/src/main/java/com/berkah/erp
+        cat > settings.gradle <<EOF
+        rootProject.name = 'BerkahErp'
+        include ':app'
+        EOF
+        cat > build.gradle <<EOF
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.5.0' }
+        }
+        allprojects { repositories { google(); mavenCentral() } }
+        EOF
+        cat > app/build.gradle <<'GRADLE'
+        plugins { id 'com.android.application' }
+        android {
+            namespace 'com.berkah.erp'
+            compileSdk 34
+            defaultConfig {
+                applicationId 'com.berkah.erp'
+                minSdk 24
+                targetSdk 34
+                versionCode 1
+                versionName '1.0'
+            }
+            buildTypes { release { minifyEnabled false } }
+        }
+        dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+        GRADLE
+        cat > app/src/main/AndroidManifest.xml <<MANIFEST
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <application android:label="Berkah ERP" android:usesCleartextTraffic="true">
+                <activity android:name=".MainActivity" android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN"/>
+                        <category android:name="android.intent.category.LAUNCHER"/>
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        MANIFEST
+        cat > app/src/main/java/com/berkah/erp/MainActivity.java <<JAVA
+        package com.berkah.erp;
+        import android.os.Bundle;
+        import android.webkit.WebView;
+        import android.webkit.WebViewClient;
+        import android.webkit.WebSettings;
+        import androidx.appcompat.app.AppCompatActivity;
+        public class MainActivity extends AppCompatActivity {
+            @Override protected void onCreate(Bundle b) {
+                super.onCreate(b);
+                WebView wv = new WebView(this);
+                wv.setWebViewClient(new WebViewClient());
+                WebSettings s = wv.getSettings();
+                s.setJavaScriptEnabled(true);
+                s.setDomStorageEnabled(true);
+                s.setUserAgentString("Mozilla/5.0 (Linux; Android 14) Chrome/125");
+                wv.loadUrl("https://server-enterprise.pages.dev");
+                setContentView(wv);
+            }
+        }
+        JAVA
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
+        gradle wrapper --gradle-version 8.7
+        chmod +x gradlew
+        ./gradlew assembleRelease
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: berkah-erp
+        path: app/build/outputs/apk/release/*.apk
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v1.0
+        name: "Berkah ERP v1.0"
+        files: app/build/outputs/apk/release/*.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
