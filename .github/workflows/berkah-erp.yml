@@ -1,0 +1,229 @@
+name: Berkah Perdana ERP
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+    - uses: actions/checkout@v5
+    - name: Set up JDK 17
+      uses: actions/setup-java@v5
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v4
+      with:
+        packages: "platform-tools platforms;android-34 build-tools;34.0.0"
+    - name: Build Android WebView APK
+      run: |
+        APP_URL="https://server-enterprise.pages.dev"
+        PACKAGE_NAME="com.berkah.erp"
+        APP_NAME="Berkah Perdana ERP"
+        VERSION_CODE=1
+        VERSION_NAME="1.0"
+
+        mkdir -p app/src/main/java/$(echo $PACKAGE_NAME | tr '.' '/')
+        mkdir -p app/src/main/res/{layout,drawable,values,menu,mipmap-anydpi-v26}
+
+        cat > settings.gradle <<EOF
+        rootProject.name = '$APP_NAME'
+        include ':app'
+        EOF
+
+        cat > build.gradle <<EOF
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.5.0' }
+        }
+        allprojects { repositories { google(); mavenCentral() } }
+        EOF
+
+        cat > app/build.gradle <<GRADLE
+        plugins { id 'com.android.application' }
+        android {
+            namespace '$PACKAGE_NAME'
+            compileSdk 34
+            defaultConfig {
+                applicationId '$PACKAGE_NAME'
+                minSdk 24
+                targetSdk 34
+                versionCode $VERSION_CODE
+                versionName '$VERSION_NAME'
+            }
+            buildTypes { release { minifyEnabled false } }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.7.0'
+            implementation 'androidx.webkit:webkit:1.13.0'
+            implementation 'com.google.android.material:material:1.12.0'
+        }
+        GRADLE
+
+        cat > app/src/main/AndroidManifest.xml <<MANIFEST
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+            <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"/>
+            <application
+                android:label="$APP_NAME"
+                android:usesCleartextTraffic="true"
+                android:icon="@drawable/ic_launcher"
+                android:roundIcon="@drawable/ic_launcher"
+                android:theme="@style/Theme.Splash">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true"
+                    android:theme="@style/Theme.Splash">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN"/>
+                        <category android:name="android.intent.category.LAUNCHER"/>
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        MANIFEST
+
+        cat > app/src/main/res/values/themes.xml <<XML
+        <resources>
+            <style name="Theme.Splash" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+                <item name="android:windowBackground">@drawable/splash_background</item>
+                <item name="android:windowFullscreen">true</item>
+                <item name="colorPrimary">#2196F3</item>
+            </style>
+        </resources>
+        XML
+
+        mkdir -p app/src/main/res/drawable
+        cat > app/src/main/res/drawable/splash_background.xml <<XML
+        <?xml version="1.0" encoding="utf-8"?>
+        <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+            <item android:drawable="@color/blue"/>
+            <item>
+                <bitmap android:src="@drawable/ic_launcher" android:gravity="center"/>
+            </item>
+        </layer-list>
+        XML
+
+        cat > app/src/main/res/values/colors.xml <<XML
+        <?xml version="1.0"?>
+        <resources>
+            <color name="blue">#2196F3</color>
+        </resources>
+        XML
+
+        cat > app/src/main/res/drawable/ic_launcher.xml <<VECTOR
+        <vector xmlns:android="http://schemas.android.com/apk/res/android"
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+            <path
+                android:fillColor="#2196F3"
+                android:pathData="M0,0h108v108h-108z"/>
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M36,36 L72,36 A4,4 0 0,1 76,40 L76,68 A4,4 0 0,1 72,72 L36,72 A4,4 0 0,1 32,68 L32,40 A4,4 0 0,1 36,36 Z"/>
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M44,48 L64,48 L64,52 L44,52 Z"/>
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M44,56 L58,56 L58,60 L44,60 Z"/>
+            <circle
+                android:fillColor="#FFFFFF"
+                android:cx="68"
+                android:cy="58"
+                android:r="3"/>
+        </vector>
+        VECTOR
+
+        cat > app/src/main/res/layout/activity_main.xml <<XML
+        <?xml version="1.0" encoding="utf-8"?>
+        <WebView xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/webview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+        XML
+
+        cat > app/src/main/java/${PACKAGE_NAME//.//}/MainActivity.java <<JAVA
+        package $PACKAGE_NAME;
+        import android.app.DownloadManager;
+        import android.content.Context;
+        import android.content.Intent;
+        import android.net.Uri;
+        import android.os.Bundle;
+        import android.os.Environment;
+        import android.webkit.DownloadListener;
+        import android.webkit.WebSettings;
+        import android.webkit.WebView;
+        import android.webkit.WebViewClient;
+        import android.widget.Toast;
+        import androidx.appcompat.app.AppCompatActivity;
+        public class MainActivity extends AppCompatActivity {
+            private WebView webView;
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                setContentView(R.layout.activity_main);
+                webView = findViewById(R.id.webview);
+                WebSettings settings = webView.getSettings();
+                settings.setJavaScriptEnabled(true);
+                settings.setDomStorageEnabled(true);
+                settings.setUserAgentString("Mozilla/5.0 (Linux; Android 14) Chrome/125");
+                webView.setWebViewClient(new WebViewClient());
+                webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
+                    try {
+                        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                        String filename = Uri.parse(url).getLastPathSegment();
+                        if (filename == null || filename.isEmpty()) filename = "download_" + System.currentTimeMillis();
+                        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+                        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                        DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                        dm.enqueue(request);
+                        Toast.makeText(MainActivity.this, "Downloading: " + filename, Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                    }
+                });
+                webView.loadUrl("$APP_URL");
+            }
+            @Override
+            public void onBackPressed() {
+                if (webView.canGoBack()) webView.goBack();
+                else super.onBackPressed();
+            }
+        }
+        JAVA
+
+        gradle wrapper --gradle-version 8.7
+        chmod +x gradlew
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+    - name: Build APK
+      run: ./gradlew assembleRelease
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: berkah-perdana-erp
+        path: app/build/outputs/apk/release/*.apk
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v1.0
+        name: "Berkah Perdana ERP v1.0"
+        files: app/build/outputs/apk/release/*.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
